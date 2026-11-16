@@ -217,8 +217,9 @@ batch order   & (3, 512)           & 4.619e-07 & 7.632e-08 & 2e-05 & PASS \\
 \end{table}
 
 Beyond the shipped checks, three further cases were run. Tensors from
-\texttt{run.py} have shape $(10,512)$, dtype \texttt{float32}, finite values and
-$\bigl|\,\lVert x\rVert-1\,\bigr|=0$ for every row. An image that is not part of
+\texttt{run.py} have shape $(10,512)$, dtype \texttt{float32}, finite values, and
+every row has unit Euclidean length to the last bit of float32 rounding. An image
+that is not part of
 the reference set (the lecture cat photograph) was encoded together with a
 supplied image, and the supplied image still matched its own reference row to
 $4.40\times10^{-7}$, which shows the result follows the pixels rather than a
