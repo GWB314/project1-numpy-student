@@ -1,0 +1,15 @@
+# Course-provided data, not resubmitted (see README: 326 MB checkpoint and the
+# reference arrays are supplied separately by the course).
+weights/
+assets/
+practice/
+
+# Local run artefacts
+output_tokens.npz
+*.npz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
