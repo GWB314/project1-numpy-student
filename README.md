@@ -27,15 +27,25 @@ by the optional classroom demo `lecture-demos/02_imageio_images.py`.
 ## What is in this repository, and what is not
 
 Included: `image_encoder.py` (the assessed file), the supplied helpers and
-command-line scripts, the configuration, the report source, and the lecture
-companion.
+command-line scripts (`helpers.py`, `runtime.py`, `transformer_steps.py`,
+`preprocess_image.py`, `run.py`, `check.py`), the configuration
+(`config.json`, `requirements.txt`), the report source under `report/` with the
+compiled PDF, and the lecture companion under `lecture-demos/`.
+`PPT-CODE-MAP.txt` and `SOURCE-MANIFEST.json` are course scaffolding notes and
+are kept as supplied.
 
 **Not included, by assignment rule:** `weights/image_encoder.npz` (326 MB, 152
-visual tensors), `assets/reference_outputs.npz` and the ten images. The
-assignment explicitly asks students not to resubmit the large parameter file or
-the reference data. To run the checks, copy the course-provided `weights/` and
-`assets/` directories next to `image_encoder.py`; paths are resolved relative to
-the scripts, so no other change is needed.
+visual tensors), `assets/reference_outputs.npz`, and the ten course images in
+`assets/images/`. The assignment explicitly asks students not to resubmit the
+large parameter file or the reference data; `practice/`, the twelve NumPy
+exercises, is excluded for the same reason.
+
+To run the checks, copy the course-provided `weights/` and `assets/`
+directories next to `image_encoder.py` — copy them whole, including both
+`manifest.json` files, because `check.py` uses them to fingerprint the
+checkpoint and the reference arrays and stops at the first stage when they are
+absent. Paths are resolved relative to the scripts, so no other change is
+needed.
 
 The original assignment description is kept as `COURSE-README.md`.
 
