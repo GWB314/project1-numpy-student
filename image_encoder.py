@@ -23,18 +23,18 @@ class MultiHeadAttention:
         In this image model D=768, H=12 and D/H=64. Use reshape/transpose.
         Research the head organization independently. Preserve token order.
         """
-        # TODO-02 contract: [B,N,D] to [B,H,N,D/H].
-        # Image model: D=768, H=12, D/H=64.
+        # TODO-02 的要求：[B,N,D] 变成 [B,H,N,D/H]。
+        # 这个图像模型里 D=768、H=12、D/H=64。
         batch, tokens, width = x.shape
 
-        # Step 1: cut the single feature axis into (head, head_dim) pairs.
-        #   Contiguous features belong to the same head, so this split is safe.
+        # 第 1 步：把单一的特征轴切成 (head, head_dim) 两段。
+        #   连续的 64 个特征属于同一个头，所以这样切是安全的。
         #   [B,N,D] -> [B,N,H,D/H]
         grouped = x.reshape(batch, tokens, self.heads, self.head_dim)
 
-        # Step 2: move the head axis in front of the token axis so each head
-        #   owns its own token-by-token comparison: [B,N,H,D/H] -> [B,H,N,D/H].
-        #   Token order inside every head is untouched.
+        # 第 2 步：把“头”这一轴挪到“token”轴前面，让每个头各自持有自己那份
+        #   token 序列去做两两比较：[B,N,H,D/H] -> [B,H,N,D/H]。
+        #   每个头内部的 token 顺序完全没有被打乱。
         return grouped.transpose(0, 2, 1, 3)
 
     def __call__(self, x, causal=False):
@@ -44,15 +44,14 @@ class MultiHeadAttention:
         k = self.split_heads(qkv[:, :, self.width:2*self.width])
         v = self.split_heads(qkv[:, :, 2*self.width:])
 
-        # TODO-03a: query/key comparisons, scaled by sqrt(head_dim).
-        # q,k,v: [B,H,N,64]. scores must have [B,H,N,N].
-        # Step 1: exchange only the final two axes of k, because q and k are 4D
-        #   here (the 2D teaching example only has one axis pair to swap).
-        #   Keeping image and head groups fixed turns this into one batched
-        #   matrix product per image and per head.
+        # TODO-03a：算 query 与 key 的相似度，并除以 sqrt(head_dim) 缩放。
+        # q、k、v 的形状都是 [B,H,N,64]，scores 必须是 [B,H,N,N]。
+        # 第 1 步：只交换 k 的最后两个轴——这里的 q、k 是 4 维的，不像课本上
+        #   那个二维例子只有一对轴可交换。图像轴和头轴保持不动，
+        #   这一次矩阵乘就等于“每张图、每个头各做一次”。
         #   q [B,H,N,D/H] @ k^T [B,H,D/H,N] -> [B,H,N,N]
-        # Step 2: divide by sqrt(head_dim)=8 so the dot products keep a
-        #   comparable magnitude before the supplied softmax conversion.
+        # 第 2 步：除以 sqrt(head_dim)=8，让点积的量级保持在合理范围，
+        #   再交给课程提供的 softmax 转成概率分布。
         scale = np.float32(np.sqrt(self.head_dim))
         scores = (q @ k.transpose(0, 1, 3, 2)) / scale
 
@@ -61,21 +60,21 @@ class MultiHeadAttention:
             scores = causal_mask(scores)
         coefficients = attention_weights(scores)  # supplied numerical helper
 
-        # TODO-03b: mix value rows using coefficients; then join head outputs.
-        # context: [B,H,N,64], merged: [B,N,D].
-        # Step 1: every token row of v becomes a weighted sum of all value rows.
+        # TODO-03b：用注意力系数对 value 的行做加权求和，再把各个头拼回去。
+        # context 是 [B,H,N,64]，merged 是 [B,N,D]。
+        # 第 1 步：v 的每个 token 行都变成所有 value 行的加权和。
         #   coefficients [B,H,N,N] @ v [B,H,N,D/H] -> [B,H,N,D/H]
         context = coefficients @ v
 
-        # Step 2: undo the split exactly in reverse order. Heads must be back
-        #   side by side before the output projection can mix them.
+        # 第 2 步：按拆分的逆序原样拼回。各头必须先并排还原，
+        #   输出投影才能把它们混合起来。
         #   [B,H,N,D/H] -> [B,N,H,D/H] -> [B,N,D]
         merged = context.transpose(0, 2, 1, 3).reshape(
             x.shape[0], x.shape[1], self.width)
 
-        # TODO-03c: output projection, using out_weight and out_bias.
-        # Return [B,N,D]. Remember the stored linear-weight orientation.
-        # out_weight is [D,D] stored as [out,in], so it is transposed here.
+        # TODO-03c：做输出投影，用 out_weight 和 out_bias。
+        # 返回 [B,N,D]，注意权重存储的方向。
+        # out_weight 是 [D,D]，按 [out,in] 存储，所以这里要转置。
         return merged @ self.out_weight.T + self.out_bias
 
 
@@ -94,23 +93,23 @@ class TransformerBlock:
         # Given: normalize each token and calculate its attention update.
         update = self.attention(self.norm1(x), causal=causal)
 
-        # TODO-04a: first residual addition. Name the result residual.
-        # The untouched x keeps the original token values; only the attention
-        # update is added, so both operands stay [B,N,D] and no shape changes.
+        # TODO-04a：第一次残差相加，结果命名为 residual。
+        # x 本身保持原样，只把注意力算出来的更新量加进去，
+        # 所以两个操作数都是 [B,N,D]，形状不变。
         residual = x + update
 
         # Given: the second Norm and the exact checkpoint activation helper.
         u = self.norm2(residual)
 
-        # TODO-04b: MLP = GELU(u @ W1.T + b1) @ W2.T + b2.
-        # hidden: [B,N,3072], mlp_update: [B,N,768] for the image tower.
-        # Return residual + mlp_update. Both residual paths retain [B,N,D].
-        # Step 1: widen each token from 768 to 3072 features (c_fc is [4D,D]).
+        # TODO-04b：MLP = GELU(u @ W1.T + b1) @ W2.T + b2。
+        # 隐藏层是 [B,N,3072]，mlp_update 是 [B,N,768]（图像塔的宽度）。
+        # 返回 residual + mlp_update。两条残差支路都保持 [B,N,D]。
+        # 第 1 步：把每个 token 从 768 维升到 3072 维（c_fc 是 [4D,D]）。
         hidden = self.gelu(u @ self.fc1_weight.T + self.fc1_bias)
-        # Step 2: project back from 3072 to 768 (c_proj is [D,4D]).
+        # 第 2 步：再投影回 768 维（c_proj 是 [D,4D]）。
         mlp_update = hidden @ self.fc2_weight.T + self.fc2_bias
-        # Step 3: second residual addition, on the residual branch rather than
-        # on x, so the attention result carries forward unchanged.
+        # 第 3 步：第二次残差相加，加在 residual 支路上而不是加在 x 上，
+        # 这样注意力那部分结果会原封不动地带下来。
         return residual + mlp_update
 
 
@@ -132,50 +131,49 @@ class ImageEncoder:
         C,H,W in that order. Each 32x32 RGB patch contributes 3*32*32 values.
         Use reshape/transpose. Do not resize the already-prepared input.
         """
-        # TODO-01: separate patch-grid axes; reorder; flatten.
-        # Input [B,3,224,224], return [B,49,3072].
+        # TODO-01：拆开网格轴、重新排序、再展平。
+        # 输入 [B,3,224,224]，输出 [B,49,3072]。
         batch, channels, height, width = images.shape
 
-        # The supplied checkpoint stores 50 positions: one CLS plus 49 patches,
-        # so the grid is 7x7 and each patch is 224/7 = 32 pixels wide.
+        # 课程给的权重里存了 50 个位置：1 个 CLS 加 49 个图像块，
+        # 所以网格是 7x7，每块宽 224/7 = 32 像素。
         patch_tokens = self.position.shape[0] - 1
         grid = int(round(patch_tokens ** 0.5))
         patch = height // grid
 
-        # Step 1: cut both spatial axes into (grid, patch) pairs. Axis order is
-        #   preserved, so nothing has been reordered yet.
+        # 第 1 步：把两个空间轴各自切成 (grid, patch) 两段。轴顺序没变，
+        #   所以此刻还没有发生任何重排。
         #   [B,3,224,224] -> [B,3,7,32,7,32]
         split = images.reshape(batch, channels, grid, patch, grid, patch)
 
-        # Step 2: reorder to (patch row, patch column, channels, h, w). The two
-        #   grid axes move forward in row-major order, which produces the
-        #   required "left to right, then top to bottom" patch order.
+        # 第 2 步：重排成 (块行, 块列, 通道, h, w)。两个网格轴按行优先挪到
+        #   前面，正好得到“先从左到右、再从上到下”的块顺序。
         #   [B,3,7,32,7,32] -> [B,7,7,3,32,32]
         ordered = split.transpose(0, 2, 4, 1, 3, 5)
 
-        # Step 3: flatten the grid into 49 rows and each patch into
-        #   3*32*32 = 3072 values, ordered C then H then W.
+        # 第 3 步：把网格压成 49 行，每块压成 3*32*32 = 3072 个值，
+        #   顺序是先 C、再 H、再 W。
         #   [B,7,7,3,32,32] -> [B,49,3072]
         return ordered.reshape(batch, grid * grid, channels * patch * patch)
 
     def embed(self, images):
         patches = self.patchify(images)  # [B,49,3072]
 
-        # TODO-05a: project patches to [B,49,768]. There is no patch bias.
-        # patch_weight was reshaped to [768,3072] = [out,in], so it is
-        # transposed to [3072,768] before multiplying the patch rows.
+        # TODO-05a：把图像块投影到 [B,49,768]，这里没有偏置。
+        # patch_weight 已被重塑为 [768,3072]，也就是 [out,in]，
+        # 所以要先转置成 [3072,768] 再和块向量相乘。
         projected = patches @ self.patch_weight.T
 
         # Given: one supplied CLS row per image.
         cls = np.tile(self.cls, (images.shape[0], 1, 1))
 
-        # TODO-05b: prepend CLS on the token axis, then add learned positions.
-        # Return [B,50,768]. self.position broadcasts over B.
-        # Step 1: CLS becomes token row 0, the 49 patch rows follow in order.
-        #   [B,1,768] and [B,49,768] -> [B,50,768]
+        # TODO-05b：把 CLS 加到 token 轴最前面，再加上可学习的位置编码。
+        # 返回 [B,50,768]。self.position 会沿 batch 轴自动广播。
+        # 第 1 步：CLS 成为第 0 个 token 行，49 个图像块按顺序排在后面。
+        #   [B,1,768] 和 [B,49,768] -> [B,50,768]
         tokens = np.concatenate((cls, projected), axis=1)
-        # Step 2: one learned position per token row; the [50,768] table
-        #   broadcasts across the batch axis without copying per image.
+        # 第 2 步：每个 token 行配一个可学习位置；[50,768] 的表沿 batch 轴
+        #   广播，不需要为每张图各复制一份。
         return tokens + self.position
 
     def encode_tokens(self, images):
@@ -189,16 +187,16 @@ class ImageEncoder:
         """TODO-06. Return one normalized output token [B,512] per image."""
         tokens = self.encode_tokens(images)
 
-        # Select CLS, apply post_norm, and project with self.projection.
-        # [B,50,768] -> [B,768] -> [B,512]. visual.proj is already [in,out].
-        # Name the projected array output. The final unit-vector helper is given.
-        # Step 1: keep only the CLS row and drop all 49 patch rows.
+        # 取出 CLS 行，做 post_norm，再用 self.projection 投影。
+        # [B,50,768] -> [B,768] -> [B,512]，visual.proj 本来就是 [in,out]。
+        # 投影结果命名为 output，最后的单位向量化由课程提供的函数完成。
+        # 第 1 步：只保留 CLS 那一行，丢掉全部 49 个图像块行。
         #   [B,50,768] -> [B,768]
         cls = tokens[:, 0, :]
-        # Step 2: a separate post-Norm instance, applied to the [B,768] features.
+        # 第 2 步：用另一个独立的 post-Norm 实例，作用在 [B,768] 特征上。
         normalized = self.post_norm(cls)
-        # Step 3: visual.proj is [768,512] already stored as [in,out], so it is
-        #   used directly. Transposing it here would be wrong.
+        # 第 3 步：visual.proj 是 [768,512]，已经按 [in,out] 存储，直接乘即可。
+        #   在这里转置就是错的。
         output = normalized @ self.projection
 
         return unit_vector(output)

@@ -13,3 +13,6 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Personal reading copy, not part of the submission
+README.zh-CN.md
