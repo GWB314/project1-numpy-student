@@ -163,7 +163,7 @@ this project and which were supplied by the starter.
 % Figure
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.96\linewidth]{figs/vit_overview.png}
+    \includegraphics[width=0.88\linewidth]{figs/vit_overview.png}
     \caption{Left: the five stages of the encoder with the array shape carried
     between them. Right: the arithmetic inside one Transformer block. Orange
     blocks are the six tasks written in this project; grey blocks are supplied
@@ -206,35 +206,32 @@ Every part is written with indexing, \texttt{reshape}/\texttt{transpose},
     scale each row to unit length with the provided helper.
 \end{enumerate}
 
-The two most delicate steps are the patch reordering and the head split:
+The two most delicate steps are quoted below, verbatim from the submitted file:
 
 \noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
 \texttt{\small image\_encoder.py:patchify} (TODO-01)}\par\vspace{-2pt}
 \begin{lstlisting}
-split   = images.reshape(batch, 3, grid, patch, grid, patch)
-          # -> [B, 3, 7, 32, 7, 32]
+split = images.reshape(batch, channels, grid, patch, grid, patch)
 ordered = split.transpose(0, 2, 4, 1, 3, 5)
-          # -> [B, 7, 7, 3, 32, 32]
-patches = ordered.reshape(batch, grid * grid, 3 * patch * patch)
+return ordered.reshape(batch, grid * grid, channels * patch * patch)
 \end{lstlisting}
 
 \noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
 \texttt{\small image\_encoder.py:split\_heads} (TODO-02)}\par\vspace{-2pt}
 \begin{lstlisting}
 grouped = x.reshape(batch, tokens, self.heads, self.head_dim)
-return    grouped.transpose(0, 2, 1, 3)
+return grouped.transpose(0, 2, 1, 3)
 \end{lstlisting}
 
-Both follow the same pattern: a \texttt{reshape} that only regroups axes,
-followed by a \texttt{transpose} that decides the order, and a final
-\texttt{reshape} that collapses what the next stage consumes. The head merge is
-the exact inverse, \texttt{transpose(0,2,1,3).reshape(B,N,D)}.
-
-Both snippets are framed in red because both are written for this submission,
-just as the orange blocks in Figure~\ref{fig:vit-arch} are. Everything the model
-does around them — resizing and normalising the image, the two LayerNorms, the
-exact GELU, the softmax conversion, the unit-length helper and every weight
-array — is supplied by the starter code and stays unmarked.
+The first one carries the shape through $[B,3,7,32,7,32] \rightarrow
+[B,7,7,3,32,32] \rightarrow [B,49,3072]$: a \texttt{reshape} that only regroups
+axes, a \texttt{transpose} that decides the order, and a final \texttt{reshape}
+that collapses what the next stage consumes. The head split is the same pattern,
+and its merge is the exact inverse. Both frames are red because both are written
+for this submission, just as the orange blocks in Figure~\ref{fig:vit-arch} are;
+everything around them --- resizing, the two LayerNorms, the exact GELU, the
+softmax conversion, the unit-length helper and every weight array --- is supplied
+by the starter code and stays unmarked.
 
 
 \section{Results}
@@ -324,45 +321,22 @@ explicit tolerance study, a batched chunked inference path, and the text tower
 that shares the same \texttt{TransformerBlock}, since the block already accepts
 the optional causal switch the final project needs.
 
-\section*{Contributions and assistance}
+\textbf{Contributions and assistance.} All six TODO groups in
+\texttt{image\_encoder.py} were written for this submission; the supplied
+scaffolding, the checkpoint and the reference arrays were left unmodified. The
+six orange blocks in Figure~\ref{fig:vit-arch} and the two red frames in
+Section~3 are exactly the work claimed here, and everything else in the
+repository is course material. An AI assistant was used while working on the
+submission: it explained the array shape carried between stages, proposed the two
+NumPy expressions quoted above, ran the staged checks while the code was being
+written, and helped typeset this report. Every expression was reviewed afterwards
+and can be explained line by line, and every number in Section~4 was produced by
+\texttt{check.py} on the submitted file.
 
-All six TODO groups in \texttt{image\_encoder.py} were written for this
-submission. The supplied scaffolding, the checkpoint and the reference arrays
-were left unmodified: the six blocks marked orange in
-Figure~\ref{fig:vit-arch} and the two frames marked red in Section~3 are exactly
-the work claimed here, and everything else in the repository is course material.
-The twelve NumPy exercises in \texttt{practice/} were written as warm-up work and
-are not part of the assessed path.
-
-An AI assistant was used while working on this submission. It explained the array
-shape carried between stages, proposed the NumPy expressions for the patch
-reordering and the head split, ran the staged checks while the implementation was
-being written, and helped typeset this report. Every expression in
-\texttt{image\_encoder.py} was reviewed afterwards and can be explained line by
-line, including why \texttt{reshape} cannot replace the
-\texttt{reshape}/\texttt{transpose} pair and why \texttt{.T} fails on a 4D array.
-Every number in Section~4 was produced by running \texttt{check.py} on the
-submitted file, and the encoder was additionally tried on images outside the
-supplied ten, so the results are not tied to the reference set.
-
-\section{References}
-{\small
-\begin{enumerate}
-  \setlength{\itemsep}{2pt}
-  \item A.~Radford, J.~W.~Kim, C.~Hallacy, et al. Learning transferable visual
-        models from natural language supervision. In \emph{Proceedings of ICML}, 2021.
-  \item G.~Ilharco, M.~Wortsman, R.~Wightman, et al. OpenCLIP. Zenodo, 2021.\\
-        \url{doi:10.5281/zenodo.5143773}.
-  \item C.~R.~Harris, K.~J.~Millman, S.~J.~van der Walt, et al. Array programming
-        with NumPy. \emph{Nature}, 585:357--362, 2020.
-  \item 课程组. Python 程序设计 week7 讲义与 project1 脚手架. 深圳大学, 2026.
-\end{enumerate}
-}
-
-\vspace{0.3cm}
-\noindent Code, commit history and this report's source:
-\par\vspace{0.15cm}
-\noindent\url{https://github.com/GWB314/project1-numpy-student}\par
+\vspace{0.2cm}
+\noindent{\small Code, commit history and this report's source:
+\url{https://github.com/GWB314/project1-numpy-student} (repository state as of
+22 November 2026).}\par
 
 \newpage
 
