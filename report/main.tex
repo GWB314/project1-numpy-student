@@ -29,6 +29,7 @@
 \usepackage{xurl}        % 长链接可在任意位置断行，避免超出右边距
 \usepackage{xcolor}      % 颜色（标红本人实现的部分）
 \usepackage{listings}    % 带底纹与边框的代码块
+\usepackage{enumitem}    % 收紧列表项间距，给正文留出页数余量
 
 % ----------------------------
 % 本人实现部分的标注配色
@@ -145,19 +146,18 @@ The encoder is one feed-forward chain with no branches and no training. Figure
 \ref{fig:vit-arch} shows the five stages and marks which parts were written in
 this project and which were supplied by the starter.
 
-\begin{enumerate}
-    \item[Spot 1]: \textbf{patchify}. Cut each image into a $7\times7$ grid of
-    $32\times32$ patches and flatten them into 49 token rows, $[B,3,224,224]$
-    $\rightarrow$ $[B,49,3072]$;
-    \item[Spot 2]: \textbf{embed}. Project patches to width 768 without bias,
-    prepend one CLS row, and add learned positions, $\rightarrow$ $[B,50,768]$;
-    \item[Spot 3]: \textbf{twelve Transformer blocks}. Each block is
-    Norm, attention, residual, Norm, MLP, residual. Shapes never change, so the
-    whole depth is one repeated arithmetic step;
-    \item[Spot 4]: \textbf{output head}. Keep the CLS row only, apply the
-    post-Norm, project $768\rightarrow512$, and scale to unit length;
-    \item[Spot 5]: \textbf{staged numerical verification}. Compare against the
-    supplied reference after each stage rather than only at the end.
+\begin{enumerate}[itemsep=2pt,topsep=3pt,parsep=0pt,leftmargin=2.4em]
+    \item[Spot 1]: \textbf{patchify} cuts each image into a $7\times7$ grid of
+    $32\times32$ patches and flattens them into 49 rows,
+    $[B,3,224,224]\rightarrow[B,49,3072]$;
+    \item[Spot 2]: \textbf{embed} projects patches to width 768 without bias,
+    prepends one CLS row and adds learned positions, $\rightarrow[B,50,768]$;
+    \item[Spot 3]: \textbf{twelve Transformer blocks}, each Norm, attention,
+    residual, Norm, MLP, residual, with shapes unchanged throughout;
+    \item[Spot 4]: \textbf{output head} keeps the CLS row, applies the
+    post-Norm, projects $768\rightarrow512$ and scales to unit length;
+    \item[Spot 5]: \textbf{staged verification} after each stage rather than
+    only at the end.
 \end{enumerate}
 
 % Figure
@@ -175,14 +175,27 @@ this project and which were supplied by the starter.
 
 \section{Implementations}
 
-As shown in Figure~\ref{fig:vit-arch}, the work decomposes into five parts:
-patches, tokens, attention, the block and the output token. Every part uses
-indexing, \texttt{reshape}/\texttt{transpose}, \texttt{@}, reductions and
-broadcasting only. All six TODO blocks are quoted below verbatim from the
-submitted file and framed in red, because every one of them is written for this
-submission. The frames follow the order the data flows, not the order of the
-TODO numbers: embed (TODO-05) runs before attention (TODO-02) because it creates
-the tokens attention reads.
+As shown in Figure~\ref{fig:vit-arch}, the work decomposes into five parts, and
+every part uses indexing, \texttt{reshape}/\texttt{transpose}, \texttt{@},
+reductions and broadcasting only.
+
+\begin{enumerate}[itemsep=2pt,topsep=3pt,parsep=0pt,leftmargin=2.4em]
+    \item[Part 1]: \textbf{Patches} --- \texttt{patchify} (TODO-01),
+    $[B,3,224,224]\rightarrow[B,49,3072]$;
+    \item[Part 2]: \textbf{Tokens} --- \texttt{embed} (TODO-05),
+    $\rightarrow[B,50,768]$;
+    \item[Part 3]: \textbf{Attention} --- \texttt{split\_heads} (TODO-02) and
+    the attention call (TODO-03), $\rightarrow[B,N,768]$;
+    \item[Part 4]: \textbf{Block} --- \texttt{TransformerBlock.\_\_call\_\_}
+    (TODO-04), $\rightarrow[B,N,768]$;
+    \item[Part 5]: \textbf{Output token} ---
+    \texttt{ImageEncoder.\_\_call\_\_} (TODO-06), $\rightarrow[B,512]$.
+\end{enumerate}
+
+The six TODO blocks behind these parts are quoted below verbatim from the
+submitted file and framed in red, in the order the data flows rather than the
+order of the numbers: embed (TODO-05) runs before attention (TODO-02) because it
+creates the tokens attention reads.
 
 \noindent{\color{studentred}\textbf{\small TODO-01}\;\textemdash\;
 \texttt{\small image\_encoder.py:patchify}\enspace
@@ -247,20 +260,17 @@ output = normalized @ self.projection
 return unit_vector(output)
 \end{lstlisting}
 
-Three details in these frames are worth naming. In TODO-01 the shape travels
-$[B,3,7,32,7,32] \rightarrow [B,7,7,3,32,32] \rightarrow [B,49,3072]$: a
-\texttt{reshape} only regroups axes, a \texttt{transpose} decides the order, and a
-final \texttt{reshape} collapses what the next stage consumes; TODO-02 and the head
-merge in TODO-03 are the same pattern. In TODO-03 the transpose names three axes
-instead of using \texttt{.T}, because the array is four-dimensional and \texttt{.T}
-would reverse all four. In TODO-06 \texttt{visual.proj} is the one weight stored as
-$[in,out]$, so it is multiplied without a transpose.
-
-Everything around these frames --- resizing and normalising the image, the QKV
-projection, the causal mask, the softmax conversion, the two LayerNorms, the exact
-GELU, \texttt{np.tile} for CLS, the twelve-block loop, the unit-length helper and
-every weight array --- is supplied by the starter code and stays unmarked, just as
-the grey blocks in Figure~\ref{fig:vit-arch} are.
+Two details in these frames are worth naming. In TODO-01 the shape travels
+$[B,3,7,32,7,32] \rightarrow [B,7,7,3,32,32] \rightarrow [B,49,3072]$: one
+\texttt{reshape} regroups the axes, one \texttt{transpose} sets their order, and
+the final \texttt{reshape} collapses what the next stage consumes. In TODO-03 the
+transpose names three axes instead of using \texttt{.T}, because the array is
+four-dimensional and \texttt{.T} would reverse all four; in TODO-06 the supplied
+\texttt{visual.proj} is the one weight stored as $[in,out]$, so it is multiplied
+without a transpose. Everything else around these frames --- resizing, the QKV
+projection, the causal mask, the softmax conversion, the LayerNorms, the exact
+GELU, the twelve-block loop and every weight array --- is supplied by the starter
+code and stays unmarked, as the grey blocks in Figure~\ref{fig:vit-arch} are.
 
 
 \section{Results}
