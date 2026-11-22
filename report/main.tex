@@ -132,7 +132,7 @@ given; the encoder has to turn each image into one unit-length
 512-dimensional vector, and the values have to match an FP32 reference
 produced separately by PyTorch.
 
-Three things had to hold. The six missing stages are written with array
+Three conditions had to be met. The six missing stages are written with array
 operations only, with no loop over samples, no framework call and no cached
 reference values. Each stage has to land inside its published tolerance
 ($\mathrm{atol}=2\times10^{-4}$ for internal tokens, $2\times10^{-5}$ for the
