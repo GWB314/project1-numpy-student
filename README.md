@@ -22,23 +22,29 @@ python -m pip install -r requirements.txt
 ```
 
 `requirements.txt` pins `numpy`, `Pillow` and `imageio`; `imageio` is only used
-by the optional classroom demo `lecture-demos/02_imageio_images.py`.
+by the optional classroom demo `practice/lecture-demos/02_imageio_images.py`.
 
 ## What is in this repository, and what is not
 
 Included: `image_encoder.py` (the assessed file), the supplied helpers and
 command-line scripts (`helpers.py`, `runtime.py`, `transformer_steps.py`,
 `preprocess_image.py`, `run.py`, `check.py`), the configuration
-(`config.json`, `requirements.txt`), the report source under `report/` with the
-compiled PDF, and the lecture companion under `lecture-demos/`.
+(`config.json`, `requirements.txt`), the report source under `report/` with its
+architecture figure, the lecture companion under `practice/lecture-demos/`, and
+the solutions to the twelve NumPy exercises in `practice/numpy_homework.py`.
 `PPT-CODE-MAP.txt` and `SOURCE-MANIFEST.json` are course scaffolding notes and
 are kept as supplied.
 
 **Not included, by assignment rule:** `weights/image_encoder.npz` (326 MB, 152
 visual tensors), `assets/reference_outputs.npz`, and the ten course images in
 `assets/images/`. The assignment explicitly asks students not to resubmit the
-large parameter file or the reference data; `practice/`, the twelve NumPy
-exercises, is excluded for the same reason.
+large parameter file or the reference data.
+
+Two more files are deliberately kept out. `report/project1-report.pdf` is the
+compiled report; it is submitted separately, and its cover carries personal
+details, so only the source stays here. `practice/project1_exercises.pdf` is
+the course exercise sheet, which is course material rather than student work —
+the solutions written against it are tracked.
 
 To run the checks, copy the course-provided `weights/` and `assets/`
 directories next to `image_encoder.py` — copy them whole, including both
@@ -75,6 +81,13 @@ python run.py --images path/to/a.jpg path/to/b.png --output my_tokens.npz
 
 `run.py` writes `ids` and `output_tokens` in the same order as its inputs and
 exits non-zero if the result is not finite `float32` with shape `[B,512]`.
+
+The twelve NumPy exercises need neither the checkpoint nor the images; they run
+on their own and print their results:
+
+```bash
+python practice/numpy_homework.py
+```
 
 ## Results on the supplied ten images
 
@@ -133,4 +146,5 @@ twice returns bit-identical rows.
 
 `report/main.tex` is the experiment report (SZU template, compiled with
 XeLaTeX on Overleaf) and `report/figs/vit_overview.png` is the architecture
-figure it includes.
+figure it includes. The compiled PDF is submitted separately and is not tracked
+here; `main.tex` and the figure are enough to rebuild it.

@@ -2,7 +2,9 @@
 # reference arrays are supplied separately by the course).
 weights/
 assets/
-practice/
+# The course exercise sheet is course material and stays out; the solution
+# written for it, practice/numpy_homework.py, is tracked.
+practice/project1_exercises.pdf
 
 # Local run artefacts
 output_tokens.npz
