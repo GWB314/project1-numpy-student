@@ -17,7 +17,7 @@ Written for this submission  --  the six TODO blocks, TODO-01 to TODO-06. Each
                        comment stating the shape going in and the shape coming
                        out.
 
-The same six blocks are the orange boxes of Figure 1 and the two red code frames
+The same six blocks are the orange boxes of Figure 1 and the six red code frames
 in Section 3 of report/main.tex.
 """
 import numpy as np
