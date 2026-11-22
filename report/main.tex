@@ -125,26 +125,26 @@
 
 \section{Objectives}
 
-This report documents the NumPy re-implementation of the image tower used by the
-final project, the OpenCLIP ViT-B/32 vision encoder. Given ten preprocessed
-$224\times224$ RGB images and a fixed checkpoint of 152 visual tensors, the
-encoder must map every image to one unit-length 512-dimensional vector whose
-values agree with an independent FP32 reference produced by PyTorch.
+This report covers the NumPy rewrite of the image tower used by the final
+project, the OpenCLIP ViT-B/32 vision encoder. Ten preprocessed
+$224\times224$ RGB images and a fixed checkpoint of 152 visual tensors are
+given; the encoder has to turn each image into one unit-length
+512-dimensional vector, and the values have to match an FP32 reference
+produced separately by PyTorch.
 
-Three objectives were set. First, implement the six missing stages using array
-operations only: no Python loop over samples, no framework call, no cached
-reference values. Second, match the staged reference within the published
-tolerances ($\mathrm{atol}=2\times10^{-4}$ for internal tokens,
-$\mathrm{atol}=2\times10^{-5}$ for the final output token). Third, keep the
-public class interface unchanged, so the same file can be dropped next to
-\texttt{clip.py} in the final project without edits.
+Three things had to hold. The six missing stages are written with array
+operations only, with no loop over samples, no framework call and no cached
+reference values. Each stage has to land inside its published tolerance
+($\mathrm{atol}=2\times10^{-4}$ for internal tokens, $2\times10^{-5}$ for the
+final output token). And the public class interface has to stay as it is, so
+that the file can be dropped next to \texttt{clip.py} without edits.
 
 
 \section{Overview}
 
-The encoder is one feed-forward chain with no branches and no training. Figure
-\ref{fig:vit-arch} shows the five stages and marks which parts were written in
-this project and which were supplied by the starter.
+The encoder is a single feed-forward chain: no branches, no training. Figure
+\ref{fig:vit-arch} shows the five stages and which of them were written here and
+which came with the starter code.
 
 \begin{enumerate}[itemsep=2pt,topsep=3pt,parsep=0pt,leftmargin=2.4em]
     \item[Spot 1]: \textbf{patchify} cuts each image into a $7\times7$ grid of
@@ -156,7 +156,7 @@ this project and which were supplied by the starter.
     residual, Norm, MLP, residual, with shapes unchanged throughout;
     \item[Spot 4]: \textbf{output head} keeps the CLS row, applies the
     post-Norm, projects $768\rightarrow512$ and scales to unit length;
-    \item[Spot 5]: \textbf{staged verification} after each stage rather than
+    \item[Spot 5]: \textbf{staged verification} after each stage instead of
     only at the end.
 \end{enumerate}
 
@@ -175,28 +175,28 @@ this project and which were supplied by the starter.
 
 \section{Implementations}
 
-As shown in Figure~\ref{fig:vit-arch}, the work decomposes into five parts, and
-every part uses indexing, \texttt{reshape}/\texttt{transpose}, \texttt{@},
-reductions and broadcasting only.
+The work splits into five parts, each written with indexing,
+\texttt{reshape}/\texttt{transpose}, \texttt{@}, reductions and broadcasting,
+and with nothing else.
 
 \begin{enumerate}[itemsep=2pt,topsep=3pt,parsep=0pt,leftmargin=2.4em]
-    \item[Part 1]: \textbf{Patches} --- \texttt{patchify} (TODO-01),
+    \item[Part 1] \textbf{Patches}: \texttt{patchify} (TODO-01),
     $[B,3,224,224]\rightarrow[B,49,3072]$;
-    \item[Part 2]: \textbf{Tokens} --- \texttt{embed} (TODO-05),
+    \item[Part 2] \textbf{Tokens}: \texttt{embed} (TODO-05),
     $\rightarrow[B,50,768]$;
-    \item[Part 3]: \textbf{Attention} --- \texttt{split\_heads} (TODO-02) and
+    \item[Part 3] \textbf{Attention}: \texttt{split\_heads} (TODO-02) and
     the attention call (TODO-03), $\rightarrow[B,N,768]$;
-    \item[Part 4]: \textbf{Block} --- \texttt{TransformerBlock.\_\_call\_\_}
+    \item[Part 4] \textbf{Block}: \texttt{TransformerBlock.\_\_call\_\_}
     (TODO-04), $\rightarrow[B,N,768]$;
-    \item[Part 5]: \textbf{Output token} ---
+    \item[Part 5] \textbf{Output token}:
     \texttt{ImageEncoder.\_\_call\_\_} (TODO-06), $\rightarrow[B,512]$.
 \end{enumerate}
 
 The six TODO blocks behind these parts are quoted below verbatim from
 \texttt{image\_encoder.py} and framed in red, in the order the data flows rather
 than the order of the numbers: embed (TODO-05) runs before attention (TODO-02)
-because it creates the tokens attention reads. Each frame is headed by its TODO
-number, the method it implements, and the shape it turns the array from and to.
+because it creates the tokens attention reads. Each frame carries its TODO
+number, the method it implements, and the shape before and after.
 
 \noindent{\color{studentred}\textbf{\small TODO-01}\;\textemdash\;
 \texttt{\small patchify}\enspace
@@ -261,24 +261,24 @@ output = normalized @ self.projection
 return unit_vector(output)
 \end{lstlisting}
 
-Two details in these frames are worth naming. In TODO-01 the shape travels
-$[B,3,7,32,7,32] \rightarrow [B,7,7,3,32,32] \rightarrow [B,49,3072]$: one
-\texttt{reshape} regroups the axes, one \texttt{transpose} sets their order, and
-the final \texttt{reshape} collapses what the next stage consumes. In TODO-03 the
-transpose names three axes instead of using \texttt{.T}, because the array is
-four-dimensional and \texttt{.T} would reverse all four; in TODO-06 the supplied
-\texttt{visual.proj} is the one weight stored as $[in,out]$, so it is multiplied
-without a transpose. Everything else around these frames --- resizing, the QKV
-projection, the causal mask, the softmax conversion, the LayerNorms, the exact
-GELU, the twelve-block loop and every weight array --- is supplied by the starter
-code and stays unmarked, as the grey blocks in Figure~\ref{fig:vit-arch} are.
+Three things in these frames are easy to get wrong. In TODO-01 the shape goes
+$[B,3,7,32,7,32] \rightarrow [B,7,7,3,32,32] \rightarrow [B,49,3072]$: the first
+\texttt{reshape} only regroups the axes, the \texttt{transpose} fixes their
+order, and the second \texttt{reshape} merges the two axes the next stage
+consumes. TODO-03 avoids \texttt{.T} because on a four-dimensional array it
+reverses all four axes, so the three axes are named instead. TODO-06 multiplies
+\texttt{visual.proj} without a transpose, since that weight is already
+$[in,out]$. The rest of the file came with the starter code and is left
+unmarked: resizing, the QKV projection, the causal mask, the softmax conversion,
+the LayerNorms, the exact GELU, the twelve-block loop, the weight arrays.
+Figure~\ref{fig:vit-arch} shows the same split in grey.
 
 
 \section{Results}
 
-Table~\ref{tab:errors} reports the staged agreement with the supplied reference.
-Every stage passes, and the final output token is two orders of magnitude
-inside its tolerance.
+Table~\ref{tab:errors} compares each stage against the supplied reference. Every
+row passes. The final output token sits two orders of magnitude inside its
+tolerance.
 
 \begin{table}[H]
 \centering
@@ -301,77 +301,71 @@ batch order   & (3, 512)           & 4.619e-07 & 7.632e-08 & 2e-05 & PASS \\
 \end{tabular}
 \end{table}
 
-Beyond the shipped checks, three further cases were run. Tensors from
-\texttt{run.py} have shape $(10,512)$, dtype \texttt{float32}, finite values, and
-every row has unit Euclidean length to the last bit of float32 rounding. An image
-that is not part of
-the reference set (the lecture cat photograph) was encoded together with a
-supplied image, and the supplied image still matched its own reference row to
-$4.40\times10^{-7}$, which shows the result follows the pixels rather than a
-memorised row. Finally, feeding the same image twice returns bit-identical rows,
-because the forward pass is deterministic and batch independent.
+I also ran three cases that \texttt{check.py} does not cover. Tensors from
+\texttt{run.py} come out as $(10,512)$ \texttt{float32}, all finite, and every
+row is unit length in float32. Encoding the lecture cat photograph together with
+a supplied image left that image's own row within $4.40\times10^{-7}$ of its
+reference; a memorised answer would have drifted. Feeding the same image twice
+returns bit-identical rows, since the forward pass is deterministic and does not
+depend on the batch.
 
 \vspace{0.2cm}
-\noindent\textbf{Environment and commands.} Every number in Table~1 was produced
-on the same machine that wrote the code: Windows 11 (x86-64), CPython 3.13.14,
-NumPy 2.5.4 and Pillow 13.0.0, with no GPU involved. The staged comparison is
-\texttt{python check.py -{}-stage all}; the batch export behind the shape and norm
-checks is \texttt{python run.py -{}-output output\_tokens.npz}. Both load the
-supplied checkpoint from \texttt{weights/} and read
-\texttt{assets/reference\_outputs.npz} at evaluation time only, so no result is
-cached between runs and every error above is recomputed from the pixels.
+\noindent\textbf{Environment and commands.} All numbers in Table~1 come from one
+machine: Windows 11 (x86-64), CPython 3.13.14, NumPy 2.5.4, Pillow 13.0.0, no
+GPU. The staged comparison runs as \texttt{python check.py -{}-stage all}; the
+export behind the shape and norm checks is
+\texttt{python run.py -{}-output output\_tokens.npz}. Both read the checkpoint
+from \texttt{weights/} and \texttt{assets/reference\_outputs.npz} only while
+evaluating, so nothing is cached between runs.
 
 
 \section{Discussion}
 
 \textbf{One shape change.} The first stage turns $[B,3,224,224]$ into
-$[B,49,3072]$. Neither 49 nor 3072 appears in the input, so this cannot be a
-plain \texttt{reshape}: the value 224 must first be factored into $7\times32$ on
-both spatial axes, which only \texttt{reshape} can do, and then the two
-patch-grid axes must be moved ahead of the channel axis, which only
-\texttt{transpose} can do. The order of the transpose is what encodes the
-assignment rule ``left to right, then top to bottom, and C-H-W inside a patch''.
-Removing the transpose still yields a legal array of the same shape with the
-same values in a different order, so the stage is compared numerically rather
-than by shape; that is why this stage, of all stages, is checked with zero
-tolerance headroom left to interpretation.
+$[B,49,3072]$. Neither 49 nor 3072 appears anywhere in the input, so a plain
+\texttt{reshape} cannot get there: 224 has to be split into $7\times32$ on both
+spatial axes first, and the two grid axes then have to be moved in front of the
+channel axis. \texttt{reshape} does the split, \texttt{transpose} does the move,
+and the order handed to it is what fixes the rule ``left to right, then top to
+bottom, and C-H-W inside a patch''. Drop the transpose and the array still has
+the right shape, holding the right values in the wrong places. A shape check
+cannot see that, which is why this stage is compared value by value.
 
-\textbf{One bug fixed.} The lecture companion is a two-token, two-dimensional
-teaching example, and there the score matrix is written as
-\texttt{q @ k.T}. Copied literally into the real model, \texttt{k} is not 2D but
-$[B,12,50,64]$, and \texttt{.T} reverses \emph{all four} axes to
-$(64,50,12,B)$. NumPy then refuses the product with
+\textbf{One bug fixed.} I copied \texttt{q @ k.T} from the lecture companion,
+which works on a two-token, two-dimensional example. In the real model \texttt{k}
+is $[B,12,50,64]$, so \texttt{.T} reversed all four axes into
+$(64,50,12,B)$, and NumPy raised
 \texttt{ValueError: matmul: Input operand 1 has a mismatch in its core
-dimension 0}, and the reported sizes point at the head axis rather than at the
-real cause. The fix is an explicit \texttt{k.transpose(0,1,3,2)}, which exchanges
-only the last two axes and leaves the image and head groups in place. The
-lesson generalises: \texttt{.T} is only a transposition of the visible two axes
-when the array happens to be 2D, so on a 4D array the axes must be named.
+dimension 0}. The sizes in that message point at the head axis, which is not
+where the mistake is. The fix is \texttt{k.transpose(0,1,3,2)}: it exchanges the
+last two axes and leaves the image and head groups alone. What I took from it is
+that \texttt{.T} stops meaning ``swap the last two axes'' past 2D, so the axes
+have to be written out.
 
-\textbf{Limitations.} The supplied GELU is evaluated with a Python loop over
-scalar \texttt{math.erf} calls, so one forward pass over ten images costs
-seconds; it was left untouched because replacing it would change the arithmetic
-that has to match the reference. Accumulation order also differs from PyTorch,
-which is why the internal stages keep errors around $10^{-5}$ instead of exact
-zeros. Finally the encoder materialises all twelve blocks and the whole batch at
-once, which is fine for ten images but would need chunking for large corpora.
+\textbf{Limitations.} The supplied GELU loops over scalar \texttt{math.erf}
+calls, so one forward pass over ten images takes a few seconds. I left it alone,
+because rewriting it would change the arithmetic that has to match the
+reference. FP32 accumulation order also differs from PyTorch, which is why the
+internal stages settle around $10^{-5}$ instead of exact zeros. The encoder
+holds all twelve blocks and the whole batch in memory at once; that is fine for
+ten images and would need chunking for a larger corpus.
 
-\textbf{Next steps.} The natural extensions are a vectorised exact GELU with an
-explicit tolerance study, a batched chunked inference path, and the text tower
-that shares the same \texttt{TransformerBlock}, since the block already accepts
-the optional causal switch the final project needs.
+\textbf{Next steps.} The next real step is the text tower, which can reuse
+\texttt{TransformerBlock} as it stands, since the block already takes the
+optional causal switch. Two smaller ones are a vectorised GELU, with a tolerance
+study to show it still matches the reference, and a chunked path for batches too
+large to hold.
 
 \textbf{Contributions and assistance.} All six TODO groups in
-\texttt{image\_encoder.py} were written for this submission; the supplied
-scaffolding, the checkpoint and the reference arrays were left unmodified. The
-six orange blocks in Figure~\ref{fig:vit-arch} and the six red frames in
-Section~3 are exactly the work claimed here, and everything else in the
-repository is course material. An AI assistant was used while working on the
-submission: it explained the array shape carried between stages, proposed the two
-NumPy expressions quoted above, ran the staged checks while the code was being
-written, and helped typeset this report. Every expression was reviewed afterwards
-and can be explained line by line, and every number in Section~4 was produced by
-\texttt{check.py} on the submitted file.
+\texttt{image\_encoder.py} were written for this submission; the scaffolding,
+the checkpoint and the reference arrays are untouched. The six orange blocks in
+Figure~\ref{fig:vit-arch} and the six red frames in Section~3 are the only work
+claimed here; everything else in the repository is course material. I used an AI
+assistant while working: it explained how the array shape moves between stages,
+proposed two of the NumPy expressions above, ran \texttt{check.py} while the code
+was being written, and helped with the \LaTeX. I went through every expression
+afterwards and can account for each line, and every number in Section~4 comes
+from \texttt{check.py} on the submitted file.
 
 \vspace{0.2cm}
 \noindent{\small Code, commit history and this report's source:

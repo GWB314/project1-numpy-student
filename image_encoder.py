@@ -3,22 +3,10 @@
 Complete TODO-01 through TODO-06 using NumPy. Model parameters are supplied.
 The public classes retain the final project's interface. helpers.py is provided.
 
-How to read this file
----------------------
-This file has two layers, and they are kept visually separate.
-
-Supplied scaffold  --  every line led by ``# Given:``, the constructor bodies,
-                       the class skeletons, and the LayerNorm / GELU / softmax /
-                       unit-vector helpers imported from helpers.py. All of it
-                       ships with the course package and is unchanged here.
-
-Written for this submission  --  the six TODO blocks, TODO-01 to TODO-06. Each
-                       one is a short NumPy expression, preceded by a Chinese
-                       comment stating the shape going in and the shape coming
-                       out.
-
-The same six blocks are the orange boxes of Figure 1 and the six red code frames
-in Section 3 of report/main.tex.
+Lines led by ``# Given:``, the constructors and the class skeletons come with
+the course package and are unchanged. The six TODO blocks are the part written
+here; they are also the orange boxes of Figure 1 and the red frames in Section 3
+of report/main.tex.
 """
 import numpy as np
 from helpers import LayerNorm, GELU, attention_weights, causal_mask, unit_vector
@@ -40,18 +28,15 @@ class MultiHeadAttention:
         In this image model D=768, H=12 and D/H=64. Use reshape/transpose.
         Research the head organization independently. Preserve token order.
         """
-        # TODO-02 的要求：[B,N,D] 变成 [B,H,N,D/H]。
-        # 这个图像模型里 D=768、H=12、D/H=64。
+        # D=768、H=12，每个头 64 维。
         batch, tokens, width = x.shape
 
-        # 第 1 步：把单一的特征轴切成 (head, head_dim) 两段。
-        #   连续的 64 个特征属于同一个头，所以这样切是安全的。
-        #   [B,N,D] -> [B,N,H,D/H]
+        # 一条特征轴切成 (head, head_dim) 两段。相邻 64 个特征属于同一个头，
+        # 直接切不会串。 [B,N,D] -> [B,N,H,D/H]
         grouped = x.reshape(batch, tokens, self.heads, self.head_dim)
 
-        # 第 2 步：把“头”这一轴挪到“token”轴前面，让每个头各自持有自己那份
-        #   token 序列去做两两比较：[B,N,H,D/H] -> [B,H,N,D/H]。
-        #   每个头内部的 token 顺序完全没有被打乱。
+        # 头轴挪到 token 轴前面，每个头各拿一份完整的 token 序列去两两比较。
+        # 每个头内部的 token 顺序不动。 [B,N,H,D/H] -> [B,H,N,D/H]
         return grouped.transpose(0, 2, 1, 3)
 
     def __call__(self, x, causal=False):
@@ -61,14 +46,11 @@ class MultiHeadAttention:
         k = self.split_heads(qkv[:, :, self.width:2*self.width])
         v = self.split_heads(qkv[:, :, 2*self.width:])
 
-        # TODO-03a：算 query 与 key 的相似度，并除以 sqrt(head_dim) 缩放。
-        # q、k、v 的形状都是 [B,H,N,64]，scores 必须是 [B,H,N,N]。
-        # 第 1 步：只交换 k 的最后两个轴——这里的 q、k 是 4 维的，不像课本上
-        #   那个二维例子只有一对轴可交换。图像轴和头轴保持不动，
-        #   这一次矩阵乘就等于“每张图、每个头各做一次”。
-        #   q [B,H,N,D/H] @ k^T [B,H,D/H,N] -> [B,H,N,N]
-        # 第 2 步：除以 sqrt(head_dim)=8，让点积的量级保持在合理范围，
-        #   再交给课程提供的 softmax 转成概率分布。
+        # TODO-03a：相似度矩阵 scores，形状 [B,H,N,N]。
+        # k 只换最后两个轴。这里 q、k 是 4 维的，不像课本那个二维例子只有
+        # 一对轴可换；照抄 .T 会把图像轴和头轴一起翻掉。这样相乘等于
+        # “每张图、每个头各算一次”。 q [B,H,N,64] @ k^T [B,H,64,N] -> [B,H,N,N]
+        # 再除 sqrt(64)=8，把点积压回合理量级，交给课程给的 softmax。
         scale = np.float32(np.sqrt(self.head_dim))
         scores = (q @ k.transpose(0, 1, 3, 2)) / scale
 
@@ -77,21 +59,17 @@ class MultiHeadAttention:
             scores = causal_mask(scores)
         coefficients = attention_weights(scores)  # supplied numerical helper
 
-        # TODO-03b：用注意力系数对 value 的行做加权求和，再把各个头拼回去。
-        # context 是 [B,H,N,64]，merged 是 [B,N,D]。
-        # 第 1 步：v 的每个 token 行都变成所有 value 行的加权和。
-        #   coefficients [B,H,N,N] @ v [B,H,N,D/H] -> [B,H,N,D/H]
+        # TODO-03b：每个 token 的行变成所有 value 行的加权和。
+        # coefficients [B,H,N,N] @ v [B,H,N,64] -> [B,H,N,64]
         context = coefficients @ v
 
-        # 第 2 步：按拆分的逆序原样拼回。各头必须先并排还原，
-        #   输出投影才能把它们混合起来。
-        #   [B,H,N,D/H] -> [B,N,H,D/H] -> [B,N,D]
+        # 拼回去正好是 split_heads 的逆操作：各头先并排还原成 [B,N,H,64]，
+        # 再压平成 [B,N,768]，后面那层输出投影才有东西可混。
+        # [B,H,N,64] -> [B,N,H,64] -> [B,N,768]
         merged = context.transpose(0, 2, 1, 3).reshape(
             x.shape[0], x.shape[1], self.width)
 
-        # TODO-03c：做输出投影，用 out_weight 和 out_bias。
-        # 返回 [B,N,D]，注意权重存储的方向。
-        # out_weight 是 [D,D]，按 [out,in] 存储，所以这里要转置。
+        # TODO-03c：输出投影加偏置。out_weight 按 [out,in] 存，要先转置。
         return merged @ self.out_weight.T + self.out_bias
 
 
@@ -110,23 +88,18 @@ class TransformerBlock:
         # Given: normalize each token and calculate its attention update.
         update = self.attention(self.norm1(x), causal=causal)
 
-        # TODO-04a：第一次残差相加，结果命名为 residual。
-        # x 本身保持原样，只把注意力算出来的更新量加进去，
-        # 所以两个操作数都是 [B,N,D]，形状不变。
+        # TODO-04a：第一次残差相加。x 不动，只把注意力的更新量加上去，
+        # 两个操作数都是 [B,N,D]，形状不变。
         residual = x + update
 
         # Given: the second Norm and the exact checkpoint activation helper.
         u = self.norm2(residual)
 
-        # TODO-04b：MLP = GELU(u @ W1.T + b1) @ W2.T + b2。
-        # 隐藏层是 [B,N,3072]，mlp_update 是 [B,N,768]（图像塔的宽度）。
-        # 返回 residual + mlp_update。两条残差支路都保持 [B,N,D]。
-        # 第 1 步：把每个 token 从 768 维升到 3072 维（c_fc 是 [4D,D]）。
+        # TODO-04b：MLP，先升到 3072 维再降回 768 维。
+        # c_fc 是 [4D,D]，c_proj 是 [D,4D]，两个都按 [out,in] 存，所以都要 .T。
         hidden = self.gelu(u @ self.fc1_weight.T + self.fc1_bias)
-        # 第 2 步：再投影回 768 维（c_proj 是 [D,4D]）。
         mlp_update = hidden @ self.fc2_weight.T + self.fc2_bias
-        # 第 3 步：第二次残差相加，加在 residual 支路上而不是加在 x 上，
-        # 这样注意力那部分结果会原封不动地带下来。
+        # 第二次残差加在 residual 上，不是加在 x 上，注意力那部分才能原样带下来。
         return residual + mlp_update
 
 
@@ -148,49 +121,41 @@ class ImageEncoder:
         C,H,W in that order. Each 32x32 RGB patch contributes 3*32*32 values.
         Use reshape/transpose. Do not resize the already-prepared input.
         """
-        # TODO-01：拆开网格轴、重新排序、再展平。
-        # 输入 [B,3,224,224]，输出 [B,49,3072]。
+        # TODO-01：拆网格轴、重排、展平。
         batch, channels, height, width = images.shape
 
-        # 课程给的权重里存了 50 个位置：1 个 CLS 加 49 个图像块，
-        # 所以网格是 7x7，每块宽 224/7 = 32 像素。
+        # 位置表 50 个位置 = 1 个 CLS + 49 个块，所以是 7x7 网格，
+        # 每块 224/7 = 32 像素。
         patch_tokens = self.position.shape[0] - 1
         grid = int(round(patch_tokens ** 0.5))
         patch = height // grid
 
-        # 第 1 步：把两个空间轴各自切成 (grid, patch) 两段。轴顺序没变，
-        #   所以此刻还没有发生任何重排。
-        #   [B,3,224,224] -> [B,3,7,32,7,32]
+        # 1) 两个空间轴各切一刀。轴顺序没动，这一步还没发生重排。
+        #    [B,3,224,224] -> [B,3,7,32,7,32]
         split = images.reshape(batch, channels, grid, patch, grid, patch)
 
-        # 第 2 步：重排成 (块行, 块列, 通道, h, w)。两个网格轴按行优先挪到
-        #   前面，正好得到“先从左到右、再从上到下”的块顺序。
-        #   [B,3,7,32,7,32] -> [B,7,7,3,32,32]
+        # 2) 两个网格轴按行优先挪到最前，正好得到“先左右、再上下”的块顺序。
+        #    [B,3,7,32,7,32] -> [B,7,7,3,32,32]
         ordered = split.transpose(0, 2, 4, 1, 3, 5)
 
-        # 第 3 步：把网格压成 49 行，每块压成 3*32*32 = 3072 个值，
-        #   顺序是先 C、再 H、再 W。
-        #   [B,7,7,3,32,32] -> [B,49,3072]
+        # 3) 压成 49 行，每行 3*32*32 = 3072 个值，块内按 C、H、W 排。
+        #    [B,7,7,3,32,32] -> [B,49,3072]
         return ordered.reshape(batch, grid * grid, channels * patch * patch)
 
     def embed(self, images):
         patches = self.patchify(images)  # [B,49,3072]
 
-        # TODO-05a：把图像块投影到 [B,49,768]，这里没有偏置。
-        # patch_weight 已被重塑为 [768,3072]，也就是 [out,in]，
-        # 所以要先转置成 [3072,768] 再和块向量相乘。
+        # TODO-05a：块投影，没有偏置。patch_weight 已经是 [768,3072]，
+        # 也就是 [out,in]，所以要 .T 之后才能和 3072 维的块向量相乘。
         projected = patches @ self.patch_weight.T
 
         # Given: one supplied CLS row per image.
         cls = np.tile(self.cls, (images.shape[0], 1, 1))
 
-        # TODO-05b：把 CLS 加到 token 轴最前面，再加上可学习的位置编码。
-        # 返回 [B,50,768]。self.position 会沿 batch 轴自动广播。
-        # 第 1 步：CLS 成为第 0 个 token 行，49 个图像块按顺序排在后面。
-        #   [B,1,768] 和 [B,49,768] -> [B,50,768]
+        # TODO-05b：CLS 插到第 0 行，49 个块按原顺序排在后面。
+        # [B,1,768] 和 [B,49,768] 拼成 [B,50,768]
         tokens = np.concatenate((cls, projected), axis=1)
-        # 第 2 步：每个 token 行配一个可学习位置；[50,768] 的表沿 batch 轴
-        #   广播，不需要为每张图各复制一份。
+        # 位置表是 [50,768]，沿 batch 轴广播，不用为每张图各复制一份。
         return tokens + self.position
 
     def encode_tokens(self, images):
@@ -204,16 +169,13 @@ class ImageEncoder:
         """TODO-06. Return one normalized output token [B,512] per image."""
         tokens = self.encode_tokens(images)
 
-        # 取出 CLS 行，做 post_norm，再用 self.projection 投影。
-        # [B,50,768] -> [B,768] -> [B,512]，visual.proj 本来就是 [in,out]。
-        # 投影结果命名为 output，最后的单位向量化由课程提供的函数完成。
-        # 第 1 步：只保留 CLS 那一行，丢掉全部 49 个图像块行。
-        #   [B,50,768] -> [B,768]
+        # TODO-06：只留 CLS 那一行，过 post-Norm，投影到 512 维，再归一化。
+        # [B,50,768] -> [B,768] -> [B,512]
+        # 只取第 0 行，49 个块行全部丢掉。
         cls = tokens[:, 0, :]
-        # 第 2 步：用另一个独立的 post-Norm 实例，作用在 [B,768] 特征上。
+        # 这里用的是另一个独立的 post-Norm，不是前面那个 pre_norm。
         normalized = self.post_norm(cls)
-        # 第 3 步：visual.proj 是 [768,512]，已经按 [in,out] 存储，直接乘即可。
-        #   在这里转置就是错的。
+        # visual.proj 是 [768,512]，本身就按 [in,out] 存，直接乘；加 .T 就错了。
         output = normalized @ self.projection
 
         return unit_vector(output)

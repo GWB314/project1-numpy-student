@@ -1,8 +1,8 @@
 # Project 1 — OpenCLIP ViT-B/32 image encoder in NumPy
 
-A from-scratch NumPy implementation of the **image tower of the final project**
-(OpenCLIP ViT-B/32). No PyTorch, no OpenCLIP package, no GPU, no network: only
-array indexing, `reshape`/`transpose`, matrix products, reductions and
+NumPy implementation of the **image tower of the final project** (OpenCLIP
+ViT-B/32), written without PyTorch or the OpenCLIP package. The whole forward
+pass is array indexing, `reshape`/`transpose`, matrix products, reductions and
 broadcasting. Model parameters are supplied by the course and are never trained.
 
 Each 224x224 RGB image becomes one unit-length 512-dimensional vector:
@@ -40,7 +40,7 @@ visual tensors), `assets/reference_outputs.npz`, and the ten course images in
 `assets/images/`. The assignment explicitly asks students not to resubmit the
 large parameter file or the reference data.
 
-Two more files are deliberately kept out. `report/project1-report.pdf` is the
+Two more files stay out. `report/project1-report.pdf` is the
 compiled report; it is submitted separately, and its cover carries personal
 details, so only the source stays here. `practice/project1_exercises.pdf` is
 the course exercise sheet, which is course material rather than student work —
@@ -117,7 +117,7 @@ twice returns bit-identical rows.
 | 05 | `ImageEncoder.embed` | bias-free patch projection, CLS prepend, learned positions |
 | 06 | `ImageEncoder.__call__` | CLS select, post-Norm, 768→512 projection, unit scaling |
 
-## Conventions that decide correctness
+## Rules the numbers depend on
 
 1. Attention and MLP linear weights are stored `[out,in]`, so every one of them
    is multiplied as `x @ W.T`. `attn.out_proj.weight` is `[D,D]`; the rule is
@@ -129,18 +129,19 @@ twice returns bit-identical rows.
 4. Attention `k` is 4D here, so only its last two axes are exchanged
    (`k.transpose(0,1,3,2)`); `k.T` would reverse every axis.
 5. Everything stays `float32`; the checks reject a `float64` result.
-6. Heads are regrouped as `transpose(0,2,1,3).reshape(B,N,D)`, the exact inverse
-   of the split.
+6. Heads are regrouped as `transpose(0,2,1,3).reshape(B,N,D)`, which undoes the
+   split from TODO-02.
 
 ## Limitations
 
 - `GELU` is supplied as a scalar `math.erf` loop, so a 10-image forward pass
-  takes seconds rather than milliseconds. Vectorising it would change the
-  reference-matching arithmetic, so it is left untouched.
+  takes a few seconds. Rewriting it would change the arithmetic that has to match
+  the reference, so it stays as supplied.
 - FP32 accumulation order differs from PyTorch, which is why small errors remain
   instead of exact zeros beyond the preprocessing stage.
 - The encoder holds all 12 blocks in memory at once and processes a whole batch
-  in one call; no streaming or gradient support is provided (none is needed).
+  in one call. There is no streaming path and no gradient support, and this task
+  needs neither.
 
 ## Report
 
