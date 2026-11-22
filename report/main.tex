@@ -180,7 +180,9 @@ patches, tokens, attention, the block and the output token. Every part uses
 indexing, \texttt{reshape}/\texttt{transpose}, \texttt{@}, reductions and
 broadcasting only. All six TODO blocks are quoted below verbatim from the
 submitted file and framed in red, because every one of them is written for this
-submission.
+submission. The frames follow the order the data flows, not the order of the
+TODO numbers: embed (TODO-05) runs before attention (TODO-02) because it creates
+the tokens attention reads.
 
 \noindent{\color{studentred}\textbf{\small TODO-01}\;\textemdash\;
 \texttt{\small image\_encoder.py:patchify}\enspace
