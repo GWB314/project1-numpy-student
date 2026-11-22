@@ -14,25 +14,25 @@
   <text x="86" y="186" font-size="16" fill="#5F5E5A">Shortest-edge bicubic resize, center crop, CLIP channel normalisation</text>
   <text x="86" y="212" font-size="16" class="mono" fill="#5F5E5A">[B, 3, 224, 224]</text>
 
-  <rect x="60" y="260" width="640" height="110" rx="10" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="60" y="260" width="640" height="110" rx="10" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="86" y="296" font-size="22" font-weight="600" fill="#633806">patchify()</text>
   <text x="556" y="296" font-size="17" fill="#854F0B">TODO-01</text>
   <text x="86" y="326" font-size="16" fill="#633806">7x7 grid of 32x32 patches, row-major order, flattened as C-H-W</text>
   <text x="86" y="352" font-size="16" class="mono" fill="#854F0B">[B, 49, 3072]</text>
 
-  <rect x="60" y="400" width="640" height="110" rx="10" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="60" y="400" width="640" height="110" rx="10" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="86" y="436" font-size="22" font-weight="600" fill="#633806">embed()</text>
   <text x="556" y="436" font-size="17" fill="#854F0B">TODO-05</text>
   <text x="86" y="466" font-size="16" fill="#633806">Patch projection without bias, prepend CLS row, add positions</text>
   <text x="86" y="492" font-size="16" class="mono" fill="#854F0B">[B, 50, 768]</text>
 
-  <rect x="60" y="540" width="640" height="110" rx="10" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="60" y="540" width="640" height="110" rx="10" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="86" y="576" font-size="22" font-weight="600" fill="#633806">LayerNorm + 12 x TransformerBlock</text>
   <text x="520" y="576" font-size="17" fill="#854F0B">TODO-02/03/04</text>
   <text x="86" y="606" font-size="16" fill="#633806">Head split, scaled dot-product attention, MLP, two residuals</text>
   <text x="86" y="632" font-size="16" class="mono" fill="#854F0B">[B, 50, 768]</text>
 
-  <rect x="60" y="720" width="640" height="110" rx="10" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="60" y="720" width="640" height="110" rx="10" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="86" y="756" font-size="22" font-weight="600" fill="#633806">Output head</text>
   <text x="556" y="756" font-size="17" fill="#854F0B">TODO-06</text>
   <text x="86" y="786" font-size="16" fill="#633806">Select CLS, post-Norm, projection, scale to unit length</text>
@@ -65,32 +65,32 @@
   <text x="856" y="296" font-size="19" fill="#444441">QKV projection:  x · Wqkv^T + b</text>
   <text x="1484" y="296" font-size="16" class="mono" fill="#5F5E5A" text-anchor="end">[B,50,2304]</text>
 
-  <rect x="830" y="332" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="332" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="364" font-size="19" fill="#633806">split_heads()</text>
   <text x="1484" y="364" font-size="16" fill="#854F0B" text-anchor="end">TODO-02</text>
   <text x="1130" y="364" font-size="16" class="mono" fill="#854F0B">[B,12,50,64]</text>
 
-  <rect x="830" y="400" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="400" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="432" font-size="19" fill="#633806">Q·K^T / sqrt(64) → softmax → ·V</text>
   <text x="1484" y="432" font-size="16" fill="#854F0B" text-anchor="end">TODO-03a/b</text>
 
-  <rect x="830" y="468" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="468" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="500" font-size="19" fill="#633806">Merge heads back, then out_proj + bias</text>
   <text x="1484" y="500" font-size="16" fill="#854F0B" text-anchor="end">TODO-03b/c</text>
 
-  <rect x="830" y="536" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="536" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="568" font-size="19" fill="#633806">⊕ residual addition (attention branch closes)</text>
   <text x="1484" y="568" font-size="16" fill="#854F0B" text-anchor="end">TODO-04a</text>
 
-  <rect x="830" y="604" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="604" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="636" font-size="19" fill="#633806">LayerNorm 2 → c_fc 3072 → GELU → c_proj 768</text>
   <text x="1484" y="636" font-size="16" fill="#854F0B" text-anchor="end">TODO-04b</text>
 
-  <rect x="830" y="672" width="680" height="52" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="830" y="672" width="680" height="52" rx="8" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="856" y="704" font-size="19" fill="#633806">⊕ residual addition (block output)</text>
   <text x="1484" y="704" font-size="16" fill="#854F0B" text-anchor="end">TODO-04b</text>
 
-  <rect x="60" y="864" width="26" height="18" rx="4" fill="#FAEEDA" stroke="#BA7517" stroke-width="1"/>
+  <rect x="60" y="864" width="26" height="18" rx="4" fill="#FDF1EC" stroke="#C0392B" stroke-width="1"/>
   <text x="98" y="879" font-size="17" fill="#444441">Written in this project</text>
   <rect x="330" y="864" width="26" height="18" rx="4" fill="#F1EFE8" stroke="#B4B2A9" stroke-width="1"/>
   <text x="368" y="879" font-size="17" fill="#444441">Given by the starter code</text>

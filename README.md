@@ -35,14 +35,14 @@ the solutions to the twelve NumPy exercises in `practice/numpy_homework.py`.
 `PPT-CODE-MAP.txt` and `SOURCE-MANIFEST.json` are course scaffolding notes and
 are kept as supplied.
 
-**Not included, by assignment rule:** `weights/image_encoder.npz` (326 MB, 152
-visual tensors), `assets/reference_outputs.npz`, and the ten course images in
-`assets/images/`. The assignment explicitly asks students not to resubmit the
-large parameter file or the reference data.
+**Not included:** `weights/image_encoder.npz` (326 MB, 152 visual tensors),
+`assets/reference_outputs.npz`, and the ten course images in `assets/images/`.
+The assignment asks students not to resubmit the parameter file or the
+reference data; the images are course material and stay out for the same reason.
 
-Two more files stay out. `report/project1-report.pdf` is the
-compiled report; it is submitted separately, and its cover carries personal
-details, so only the source stays here. `practice/project1_exercises.pdf` is
+Two more files stay out. The compiled report (`project1_report.pdf`) is
+submitted separately and its cover carries personal details, so only the source
+stays here. `practice/project1_exercises.pdf` is
 the course exercise sheet, which is course material rather than student work —
 the solutions written against it are tracked.
 
@@ -101,12 +101,13 @@ python practice/numpy_homework.py
 | output | (10, 512) | 5.439e-07 | 8.311e-08 | 2e-05 | PASS |
 | batch | (3, 512) | 4.619e-07 | 7.632e-08 | 2e-05 | PASS |
 
-All ten output rows have `| ||x|| - 1 | = 0`, and repeating the same image
-twice returns bit-identical rows.
+All ten output rows have `| ||x|| - 1 | <= 1.2e-7` (float32 rounding), and
+repeating the same image twice returns bit-identical rows.
 
 ## What was implemented
 
-`image_encoder.py` only; every other file is supplied.
+`image_encoder.py` only; every other **code** file is supplied. The README, the
+report source and the NumPy exercise file are written by me.
 
 | TODO | Method | Operation |
 | --- | --- | --- |
@@ -135,7 +136,8 @@ twice returns bit-identical rows.
 ## Limitations
 
 - `GELU` is supplied as a scalar `math.erf` loop, so a 10-image forward pass
-  takes a few seconds. Rewriting it would change the arithmetic that has to match
+  takes about 50-80 seconds (four minutes on a cold first run), and
+  `check.py --stage all` takes a few minutes. Rewriting it would change the arithmetic that has to match
   the reference, so it stays as supplied.
 - FP32 accumulation order differs from PyTorch, which is why small errors remain
   instead of exact zeros beyond the preprocessing stage.
