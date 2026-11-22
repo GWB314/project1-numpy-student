@@ -27,6 +27,33 @@
 \usepackage{verbatim}    % 显示代码块
 \usepackage{float}       % 控制图片浮动位置（[H]参数）
 \usepackage{xurl}        % 长链接可在任意位置断行，避免超出右边距
+\usepackage{xcolor}      % 颜色（标红本人实现的部分）
+\usepackage{listings}    % 带底纹与边框的代码块
+
+% ----------------------------
+% 本人实现部分的标注配色
+%   报告里凡是"本人写的代码"都用这套红色标注，与图 1 的橙色图例对应
+% ----------------------------
+\definecolor{studentred}{HTML}{C0392B}    % 标注用的红色
+\definecolor{studentbg}{HTML}{FDF1EC}     % 浅红底纹，保证黑字仍然清晰
+\lstset{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{studentred}\bfseries,
+  commentstyle=\color{black!55}\itshape,
+  backgroundcolor=\color{studentbg},
+  frame=single,
+  framerule=0.9pt,
+  rulecolor=\color{studentred},
+  xleftmargin=3pt,
+  xrightmargin=3pt,
+  aboveskip=5pt,
+  belowskip=5pt,
+  showstringspaces=false,
+  breaklines=true,
+  keepspaces=true,
+  columns=fullflexible,
+}
 
 % ----------------------------
 % 排版微调
@@ -181,23 +208,33 @@ Every part is written with indexing, \texttt{reshape}/\texttt{transpose},
 
 The two most delicate steps are the patch reordering and the head split:
 
-\begin{verbatim}
+\noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
+\texttt{\small image\_encoder.py:patchify} (TODO-01)}\par\vspace{-2pt}
+\begin{lstlisting}
 split   = images.reshape(batch, 3, grid, patch, grid, patch)
           # -> [B, 3, 7, 32, 7, 32]
 ordered = split.transpose(0, 2, 4, 1, 3, 5)
           # -> [B, 7, 7, 3, 32, 32]
 patches = ordered.reshape(batch, grid * grid, 3 * patch * patch)
-\end{verbatim}
+\end{lstlisting}
 
-\begin{verbatim}
+\noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
+\texttt{\small image\_encoder.py:split\_heads} (TODO-02)}\par\vspace{-2pt}
+\begin{lstlisting}
 grouped = x.reshape(batch, tokens, self.heads, self.head_dim)
 return    grouped.transpose(0, 2, 1, 3)
-\end{verbatim}
+\end{lstlisting}
 
 Both follow the same pattern: a \texttt{reshape} that only regroups axes,
 followed by a \texttt{transpose} that decides the order, and a final
 \texttt{reshape} that collapses what the next stage consumes. The head merge is
 the exact inverse, \texttt{transpose(0,2,1,3).reshape(B,N,D)}.
+
+Both snippets are framed in red because both are written for this submission,
+just as the orange blocks in Figure~\ref{fig:vit-arch} are. Everything the model
+does around them — resizing and normalising the image, the two LayerNorms, the
+exact GELU, the softmax conversion, the unit-length helper and every weight
+array — is supplied by the starter code and stays unmarked.
 
 
 \section{Results}
@@ -286,6 +323,27 @@ once, which is fine for ten images but would need chunking for large corpora.
 explicit tolerance study, a batched chunked inference path, and the text tower
 that shares the same \texttt{TransformerBlock}, since the block already accepts
 the optional causal switch the final project needs.
+
+\section*{Contributions and assistance}
+
+All six TODO groups in \texttt{image\_encoder.py} were written for this
+submission. The supplied scaffolding, the checkpoint and the reference arrays
+were left unmodified: the six blocks marked orange in
+Figure~\ref{fig:vit-arch} and the two frames marked red in Section~3 are exactly
+the work claimed here, and everything else in the repository is course material.
+The twelve NumPy exercises in \texttt{practice/} were written as warm-up work and
+are not part of the assessed path.
+
+An AI assistant was used while working on this submission. It explained the array
+shape carried between stages, proposed the NumPy expressions for the patch
+reordering and the head split, ran the staged checks while the implementation was
+being written, and helped typeset this report. Every expression in
+\texttt{image\_encoder.py} was reviewed afterwards and can be explained line by
+line, including why \texttt{reshape} cannot replace the
+\texttt{reshape}/\texttt{transpose} pair and why \texttt{.T} fails on a 4D array.
+Every number in Section~4 was produced by running \texttt{check.py} on the
+submitted file, and the encoder was additionally tried on images outside the
+supplied ten, so the results are not tied to the reference set.
 
 \section{References}
 {\small

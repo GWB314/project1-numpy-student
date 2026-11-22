@@ -2,6 +2,23 @@
 
 Complete TODO-01 through TODO-06 using NumPy. Model parameters are supplied.
 The public classes retain the final project's interface. helpers.py is provided.
+
+How to read this file
+---------------------
+This file has two layers, and they are kept visually separate.
+
+Supplied scaffold  --  every line led by ``# Given:``, the constructor bodies,
+                       the class skeletons, and the LayerNorm / GELU / softmax /
+                       unit-vector helpers imported from helpers.py. All of it
+                       ships with the course package and is unchanged here.
+
+Written for this submission  --  the six TODO blocks, TODO-01 to TODO-06. Each
+                       one is a short NumPy expression, preceded by a Chinese
+                       comment stating the shape going in and the shape coming
+                       out.
+
+The same six blocks are the orange boxes of Figure 1 and the two red code frames
+in Section 3 of report/main.tex.
 """
 import numpy as np
 from helpers import LayerNorm, GELU, attention_weights, causal_mask, unit_vector
