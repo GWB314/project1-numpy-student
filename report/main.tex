@@ -33,7 +33,7 @@
 
 % ----------------------------
 % 本人实现部分的标注配色
-%   报告里凡是"本人写的代码"都用这套红色标注，与图 1 的橙色图例对应
+%   报告里凡是"本人写的代码"都用这套红色标注，与图 1 的红色图例对应
 % ----------------------------
 \definecolor{studentred}{HTML}{C0392B}    % 标注用的红色
 \definecolor{studentbg}{HTML}{FDF1EC}     % 浅红底纹，保证黑字仍然清晰
@@ -295,7 +295,6 @@ $5\times10^{-7}$ of its reference; a memorised answer would have drifted. The
 last table row is already an order-and-duplicate test, but it uses
 \texttt{allclose}; feeding the same image twice also gives bit-identical rows.
 
-\vspace{0.2cm}
 \noindent\textbf{Environment and commands.} All numbers in Table~1 come from one
 machine: Windows 11 (x86-64), CPython 3.14.7, NumPy 2.5.5, Pillow 12.3.0, no
 GPU. The staged comparison runs as \texttt{python check.py -{}-stage all}; the
@@ -334,8 +333,8 @@ calls, so one forward pass over ten images takes about a minute here. I left it 
 because rewriting it would change the arithmetic that has to match the
 reference. FP32 accumulation order also differs from PyTorch, which is why the
 internal stages settle around $10^{-5}$ instead of exact zeros. The encoder
-holds all twelve blocks and the whole batch in memory at once; that is fine for
-ten images and would need chunking for a larger corpus.
+holds all twelve blocks and the whole batch in memory at once, fine for ten
+images but not for a larger corpus.
 
 \textbf{Next steps.} The next real step is the text tower, which can reuse
 \texttt{TransformerBlock} as it stands, since the block already takes the
@@ -352,12 +351,9 @@ README, this report and \texttt{practice/numpy\_homework.py} are mine. I used an
 assistant while working: it explained how the array shape moves between stages, proposed the
 \texttt{transpose(0,2,4,1,3,5)} order in \texttt{patchify} and the
 \texttt{transpose(0,2,1,3).reshape(...)} merge in attention, ran
-\texttt{check.py} while the code was being written, and helped with the
-\LaTeX. I checked both expressions against the reference myself. Table~1 comes
-from \texttt{check.py} on the submitted file; the two extra checks come from
-\texttt{run.py}.
+\texttt{check.py} as I went, and helped with the \LaTeX. I checked both
+expressions against the reference myself.
 
-\vspace{0.2cm}
 \noindent{\small Code, commit history and this report's source:
 \url{https://github.com/GWB314/project1-numpy-student} (repository state as of
 22 November 2026).}\par
