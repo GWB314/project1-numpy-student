@@ -175,63 +175,90 @@ this project and which were supplied by the starter.
 
 \section{Implementations}
 
-As shown in Figure~\ref{fig:vit-arch}, the work decomposes into five parts.
-Every part is written with indexing, \texttt{reshape}/\texttt{transpose},
-\texttt{@}, reductions and broadcasting only.
+As shown in Figure~\ref{fig:vit-arch}, the work decomposes into five parts:
+patches, tokens, attention, the block and the output token. Every part uses
+indexing, \texttt{reshape}/\texttt{transpose}, \texttt{@}, reductions and
+broadcasting only. All six TODO blocks are quoted below verbatim from the
+submitted file and framed in red, because every one of them is written for this
+submission.
 
-\begin{enumerate}
-    \item[Part 1]: \textbf{Patches}. The two spatial axes are each factored into
-    $7\times32$ by a single \texttt{reshape}, the patch-grid axes are moved in
-    front of the channel axis by \texttt{transpose}, and the result is flattened
-    to $[B,49,3072]$. This is \texttt{image\_encoder.py:patchify}.
-
-    \item[Part 2]: \textbf{Tokens}. The patch matrix multiplies the supplied
-    projection transposed, $ [B,49,3072]\cdot[3072,768] $, with no bias term.
-    CLS is prepended with \texttt{np.concatenate} on the token axis and the
-    $[50,768]$ position table is added by broadcasting.
-
-    \item[Part 3]: \textbf{Attention}. The combined QKV projection is computed
-    once and sliced into $q,k,v$; each is split into 12 heads of width 64.
-    Scores are $qk^{\top}/\sqrt{64}$ per image and per head, converted by the
-    supplied softmax helper, then multiplied with $v$. Heads are merged back
-    into width 768 before the output projection.
-
-    \item[Part 4]: \textbf{Block}. The attention update is added to the block
-    input, the sum is normalised, and the MLP widens each token to 3072
-    features, applies the exact GELU, and projects back to 768. The second
-    residual is added to the first residual, not to the block input.
-
-    \item[Part 5]: \textbf{Output token}. Index the CLS row, apply the separate
-    post-Norm instance, multiply by the supplied $[768,512]$ projection, and
-    scale each row to unit length with the provided helper.
-\end{enumerate}
-
-The two most delicate steps are quoted below, verbatim from the submitted file:
-
-\noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
-\texttt{\small image\_encoder.py:patchify} (TODO-01)}\par\vspace{-2pt}
+\noindent{\color{studentred}\textbf{\small TODO-01}\;\textemdash\;
+\texttt{\small image\_encoder.py:patchify}\enspace
+$[B,3,224,224]\rightarrow[B,49,3072]$}\par\vspace{-3pt}
 \begin{lstlisting}
+batch, channels, height, width = images.shape
+patch_tokens = self.position.shape[0] - 1
+grid = int(round(patch_tokens ** 0.5))
+patch = height // grid
 split = images.reshape(batch, channels, grid, patch, grid, patch)
 ordered = split.transpose(0, 2, 4, 1, 3, 5)
 return ordered.reshape(batch, grid * grid, channels * patch * patch)
 \end{lstlisting}
 
-\noindent{\color{studentred}\textbf{\small Written for this submission}\;\textemdash\;
-\texttt{\small image\_encoder.py:split\_heads} (TODO-02)}\par\vspace{-2pt}
+\noindent{\color{studentred}\textbf{\small TODO-05}\;\textemdash\;
+\texttt{\small image\_encoder.py:embed}\enspace
+$[B,49,3072]\rightarrow[B,50,768]$}\par\vspace{-3pt}
 \begin{lstlisting}
+projected = patches @ self.patch_weight.T
+tokens = np.concatenate((cls, projected), axis=1)
+return tokens + self.position
+\end{lstlisting}
+
+\noindent{\color{studentred}\textbf{\small TODO-02}\;\textemdash\;
+\texttt{\small image\_encoder.py:split\_heads}\enspace
+$[B,N,768]\rightarrow[B,12,N,64]$}\par\vspace{-3pt}
+\begin{lstlisting}
+batch, tokens, width = x.shape
 grouped = x.reshape(batch, tokens, self.heads, self.head_dim)
 return grouped.transpose(0, 2, 1, 3)
 \end{lstlisting}
 
-The first one carries the shape through $[B,3,7,32,7,32] \rightarrow
-[B,7,7,3,32,32] \rightarrow [B,49,3072]$: a \texttt{reshape} that only regroups
-axes, a \texttt{transpose} that decides the order, and a final \texttt{reshape}
-that collapses what the next stage consumes. The head split is the same pattern,
-and its merge is the exact inverse. Both frames are red because both are written
-for this submission, just as the orange blocks in Figure~\ref{fig:vit-arch} are;
-everything around them --- resizing, the two LayerNorms, the exact GELU, the
-softmax conversion, the unit-length helper and every weight array --- is supplied
-by the starter code and stays unmarked.
+\noindent{\color{studentred}\textbf{\small TODO-03}\;\textemdash\;
+\texttt{\small image\_encoder.py:MultiHeadAttention.\_\_call\_\_}\enspace
+$[B,12,N,64]\rightarrow[B,N,768]$}\par\vspace{-3pt}
+\begin{lstlisting}
+scale = np.float32(np.sqrt(self.head_dim))
+scores = (q @ k.transpose(0, 1, 3, 2)) / scale
+context = coefficients @ v
+merged = context.transpose(0, 2, 1, 3).reshape(
+    x.shape[0], x.shape[1], self.width)
+return merged @ self.out_weight.T + self.out_bias
+\end{lstlisting}
+
+\noindent{\color{studentred}\textbf{\small TODO-04}\;\textemdash\;
+\texttt{\small image\_encoder.py:TransformerBlock.\_\_call\_\_}\enspace
+$[B,N,768]\rightarrow[B,N,768]$}\par\vspace{-3pt}
+\begin{lstlisting}
+residual = x + update
+hidden = self.gelu(u @ self.fc1_weight.T + self.fc1_bias)
+mlp_update = hidden @ self.fc2_weight.T + self.fc2_bias
+return residual + mlp_update
+\end{lstlisting}
+
+\noindent{\color{studentred}\textbf{\small TODO-06}\;\textemdash\;
+\texttt{\small image\_encoder.py:ImageEncoder.\_\_call\_\_}\enspace
+$[B,50,768]\rightarrow[B,512]$}\par\vspace{-3pt}
+\begin{lstlisting}
+cls = tokens[:, 0, :]
+normalized = self.post_norm(cls)
+output = normalized @ self.projection
+return unit_vector(output)
+\end{lstlisting}
+
+Three details in these frames are worth naming. In TODO-01 the shape travels
+$[B,3,7,32,7,32] \rightarrow [B,7,7,3,32,32] \rightarrow [B,49,3072]$: a
+\texttt{reshape} only regroups axes, a \texttt{transpose} decides the order, and a
+final \texttt{reshape} collapses what the next stage consumes; TODO-02 and the head
+merge in TODO-03 are the same pattern. In TODO-03 the transpose names three axes
+instead of using \texttt{.T}, because the array is four-dimensional and \texttt{.T}
+would reverse all four. In TODO-06 \texttt{visual.proj} is the one weight stored as
+$[in,out]$, so it is multiplied without a transpose.
+
+Everything around these frames --- resizing and normalising the image, the QKV
+projection, the causal mask, the softmax conversion, the two LayerNorms, the exact
+GELU, \texttt{np.tile} for CLS, the twelve-block loop, the unit-length helper and
+every weight array --- is supplied by the starter code and stays unmarked, just as
+the grey blocks in Figure~\ref{fig:vit-arch} are.
 
 
 \section{Results}
